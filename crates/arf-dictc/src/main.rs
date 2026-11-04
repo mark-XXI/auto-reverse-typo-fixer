@@ -22,11 +22,17 @@ struct Opts {
 }
 
 fn parse_opts(args: &[String]) -> Result<Opts, String> {
-    let mut o = Opts { top: usize::MAX, short_top: usize::MAX, min_len: 2 };
+    let mut o = Opts {
+        top: usize::MAX,
+        short_top: usize::MAX,
+        min_len: 2,
+    };
     let mut it = args.iter();
     while let Some(a) = it.next() {
         let mut num = |name: &str| -> Result<usize, String> {
-            it.next().and_then(|v| v.parse().ok()).ok_or_else(|| format!("{name} needs a number"))
+            it.next()
+                .and_then(|v| v.parse().ok())
+                .ok_or_else(|| format!("{name} needs a number"))
         };
         match a.as_str() {
             "--top" => o.top = num("--top")?,
@@ -94,14 +100,25 @@ fn eval(args: &[String]) -> Result<(), String> {
         return Err("usage: arf-dictc eval <ar_list.txt> <en_list.txt> [options]".into());
     };
     let o = parse_opts(rest)?;
-    let ar_all = read_list(Lang::Arabic, &fs::read_to_string(ar_path).map_err(|e| e.to_string())?, o.min_len);
-    let en_all = read_list(Lang::English, &fs::read_to_string(en_path).map_err(|e| e.to_string())?, o.min_len);
+    let ar_all = read_list(
+        Lang::Arabic,
+        &fs::read_to_string(ar_path).map_err(|e| e.to_string())?,
+        o.min_len,
+    );
+    let en_all = read_list(
+        Lang::English,
+        &fs::read_to_string(en_path).map_err(|e| e.to_string())?,
+        o.min_len,
+    );
     let ar_dict = select(&ar_all, &o);
     let en_dict = select(&en_all, &o);
     let total = |all: &[(String, u64)]| all.iter().map(|(_, c)| *c as f64).sum::<f64>();
     let covered = |all: &[(String, u64)], dict: &[String]| {
         let set: std::collections::HashSet<&String> = dict.iter().collect();
-        all.iter().filter(|(w, _)| set.contains(w)).map(|(_, c)| *c as f64).sum::<f64>()
+        all.iter()
+            .filter(|(w, _)| set.contains(w))
+            .map(|(_, c)| *c as f64)
+            .sum::<f64>()
     };
     println!(
         "dictionary: ar {} words ({:.1}% of corpus tokens), en {} words ({:.1}%)",
@@ -126,7 +143,11 @@ fn eval(args: &[String]) -> Result<(), String> {
     let in_dict = |d: &[String]| d.iter().cloned().collect::<std::collections::HashSet<_>>();
     let (ar_set, en_set) = (in_dict(&ar_dict), in_dict(&en_dict));
     let held_out = |all: &[(String, u64)], set: &std::collections::HashSet<String>| {
-        all.iter().map(|(w, _)| w.clone()).filter(|w| !set.contains(w) && w.chars().count() >= 3).take(5000).collect::<Vec<_>>()
+        all.iter()
+            .map(|(w, _)| w.clone())
+            .filter(|w| !set.contains(w) && w.chars().count() >= 3)
+            .take(5000)
+            .collect::<Vec<_>>()
     };
 
     let mut t = 0u64;
@@ -140,7 +161,11 @@ fn eval(args: &[String]) -> Result<(), String> {
         engine.on_space(t).is_some()
     };
 
-    let mut report = |name: &str, words: &[String], typed_layout: u64, typist: &dyn Fn(&str) -> Vec<arf_core::Key>, engine: &mut Engine| {
+    let mut report = |name: &str,
+                      words: &[String],
+                      typed_layout: u64,
+                      typist: &dyn Fn(&str) -> Vec<arf_core::Key>,
+                      engine: &mut Engine| {
         let (mut n, mut hits) = (0usize, 0usize);
         let mut by_len = [(0usize, 0usize); 4]; // 3,4,5,6+
         for w in words {
@@ -157,7 +182,13 @@ fn eval(args: &[String]) -> Result<(), String> {
                 by_len[b].1 += 1;
             }
         }
-        let pct = |a: usize, b: usize| if b == 0 { 0.0 } else { 100.0 * a as f64 / b as f64 };
+        let pct = |a: usize, b: usize| {
+            if b == 0 {
+                0.0
+            } else {
+                100.0 * a as f64 / b as f64
+            }
+        };
         println!(
             "{name}: {hits}/{n} = {:.2}%   (len3 {:.2}%, len4 {:.2}%, len5 {:.2}%, len6+ {:.2}%)",
             pct(hits, n),
@@ -169,14 +200,50 @@ fn eval(args: &[String]) -> Result<(), String> {
     };
 
     println!("\nFALSE POSITIVES (correctly typed, not in dictionary; lower is better):");
-    report("  Arabic words typed in Arabic layout ", &held_out(&ar_all, &ar_set), 2, &|w| ar.keys_for_text(w), &mut engine);
-    report("  English words typed in English layout", &held_out(&en_all, &en_set), 1, &|w| en.keys_for_text(w), &mut engine);
+    report(
+        "  Arabic words typed in Arabic layout ",
+        &held_out(&ar_all, &ar_set),
+        2,
+        &|w| ar.keys_for_text(w),
+        &mut engine,
+    );
+    report(
+        "  English words typed in English layout",
+        &held_out(&en_all, &en_set),
+        1,
+        &|w| en.keys_for_text(w),
+        &mut engine,
+    );
 
-    println!("\nRECALL (dictionary words typed in the wrong layout, 3+ letters; higher is better):");
-    let ar3: Vec<String> = ar_dict.iter().filter(|w| w.chars().count() >= 3).take(5000).cloned().collect();
-    let en3: Vec<String> = en_dict.iter().filter(|w| w.chars().count() >= 3).take(5000).cloned().collect();
-    report("  Arabic words typed with English layout", &ar3, 1, &|w| ar.keys_for_text(w), &mut engine);
-    report("  English words typed with Arabic layout", &en3, 2, &|w| en.keys_for_text(w), &mut engine);
+    println!(
+        "\nRECALL (dictionary words typed in the wrong layout, 3+ letters; higher is better):"
+    );
+    let ar3: Vec<String> = ar_dict
+        .iter()
+        .filter(|w| w.chars().count() >= 3)
+        .take(5000)
+        .cloned()
+        .collect();
+    let en3: Vec<String> = en_dict
+        .iter()
+        .filter(|w| w.chars().count() >= 3)
+        .take(5000)
+        .cloned()
+        .collect();
+    report(
+        "  Arabic words typed with English layout",
+        &ar3,
+        1,
+        &|w| ar.keys_for_text(w),
+        &mut engine,
+    );
+    report(
+        "  English words typed with Arabic layout",
+        &en3,
+        2,
+        &|w| en.keys_for_text(w),
+        &mut engine,
+    );
     Ok(())
 }
 

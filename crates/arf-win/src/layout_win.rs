@@ -44,7 +44,15 @@ impl KeyboardLayout for WinLayout {
             }
             let mut buf = [0u16; 8];
             // Flag 4: do not change the keyboard state (dead keys stay untouched).
-            let n = ToUnicodeEx(vk, key.scan as u32, state.as_ptr(), buf.as_mut_ptr(), 8, 4, self.hkl);
+            let n = ToUnicodeEx(
+                vk,
+                key.scan as u32,
+                state.as_ptr(),
+                buf.as_mut_ptr(),
+                8,
+                4,
+                self.hkl,
+            );
             if n <= 0 {
                 return None; // 0: no text, <0: dead key
             }

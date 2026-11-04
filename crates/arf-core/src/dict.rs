@@ -23,7 +23,9 @@ pub struct WordSet {
 
 impl WordSet {
     pub fn from_text(lang: Lang, text: &str) -> Self {
-        WordSet { set: clean_lines(lang, text).collect() }
+        WordSet {
+            set: clean_lines(lang, text).collect(),
+        }
     }
 }
 
@@ -43,7 +45,9 @@ pub struct FstDictionary {
 
 impl FstDictionary {
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Self, fst::Error> {
-        Ok(FstDictionary { set: fst::Set::new(bytes)? })
+        Ok(FstDictionary {
+            set: fst::Set::new(bytes)?,
+        })
     }
 
     /// Builds FST bytes from a one-word-per-line list (normalizes, de-duplicates, sorts).

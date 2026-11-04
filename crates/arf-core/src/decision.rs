@@ -127,7 +127,16 @@ pub struct Engine {
 impl Engine {
     pub fn new(cfg: Config, validator: Validator, layouts: LayoutRegistry) -> Self {
         let buf = KeyBuffer::new(cfg.max_run_words, cfg.max_run_chars, cfg.idle_timeout_ms);
-        Engine { cfg, validator, layouts, buf, sticky: 0, last: None, pause: None, last_input_ms: None }
+        Engine {
+            cfg,
+            validator,
+            layouts,
+            buf,
+            sticky: 0,
+            last: None,
+            pause: None,
+            last_input_ms: None,
+        }
     }
 
     pub fn layouts(&self) -> &LayoutRegistry {
@@ -175,7 +184,9 @@ impl Engine {
 
     pub fn tick(&mut self, now_ms: u64) {
         self.buf.tick(now_ms);
-        if self.last_input_ms.is_some_and(|l| now_ms.saturating_sub(l) > self.cfg.idle_timeout_ms)
+        if self
+            .last_input_ms
+            .is_some_and(|l| now_ms.saturating_sub(l) > self.cfg.idle_timeout_ms)
             && matches!(self.pause, Some(Pause::Run))
         {
             self.pause = None;
@@ -220,7 +231,11 @@ impl Engine {
         match self.pause {
             Some(Pause::Run) => true,
             Some(Pause::Words(n)) => {
-                self.pause = if n > 1 { Some(Pause::Words(n - 1)) } else { None };
+                self.pause = if n > 1 {
+                    Some(Pause::Words(n - 1))
+                } else {
+                    None
+                };
                 n > 0
             }
             Some(Pause::Until(t)) => {
@@ -253,15 +268,40 @@ impl Engine {
     }
 
     pub fn can_undo(&self, now_ms: u64) -> bool {
-        self.last.as_ref().is_some_and(|e| now_ms.saturating_sub(e.at_ms) <= self.cfg.undo_window_ms)
+        self.last
+            .as_ref()
+            .is_some_and(|e| now_ms.saturating_sub(e.at_ms) <= self.cfg.undo_window_ms)
     }
 
-    /// Reverts the last correction (the whole run rewrite). Words become `Rejected`.
-    pub fn undo(&mut self, now_ms: u64) -> Option<UndoPlan> {
-        let e = self.last.take()?;
+    /// Build an Undo plan without consuming it or changing rejection/pause state.
+    /// If the OS rewrite fails, the caller must NOT commit this plan.
+    pub fn prepare_undo(&self, now_ms: u64) -> Option<UndoPlan> {
+        let e = self.last.as_ref()?;
         if now_ms.saturating_sub(e.at_ms) > self.cfg.undo_window_ms {
             return None;
         }
+        Some(UndoPlan {
+            backspaces: e.corrected_chars,
+            text: e.original_text.clone(),
+            restore_layout: e.restore_layout,
+        })
+    }
+
+    /// Finalize a previously prepared Undo after its external rewrite succeeded.
+    /// This engine is owned by one worker; no other engine operation can interleave
+    /// with its synchronous SendInput call. Verify the plan still matches anyway.
+    pub fn commit_undo(&mut self, plan: &UndoPlan, now_ms: u64) -> bool {
+        let Some(candidate) = self.last.as_ref() else {
+            return false;
+        };
+        if now_ms.saturating_sub(candidate.at_ms) > self.cfg.undo_window_ms
+            || candidate.corrected_chars != plan.backspaces
+            || candidate.original_text != plan.text
+            || candidate.restore_layout != plan.restore_layout
+        {
+            return false;
+        }
+        let e = self.last.take().expect("matching Undo entry was checked");
         // Remember what the user rejected: these words are protected for the rest of the session.
         let rejected: Vec<(Lang, String)> = (e.first..=e.last)
             .filter_map(|i| {
@@ -283,7 +323,14 @@ impl Engine {
             UndoPause::Words(n) => Some(Pause::Words(n)),
             UndoPause::Seconds(s) => Some(Pause::Until(now_ms + s as u64 * 1000)),
         };
-        Some(UndoPlan { backspaces: e.corrected_chars, text: e.original_text, restore_layout: e.restore_layout })
+        true
+    }
+
+    /// Convenience API for callers that do not have an external editor rewrite.
+    /// The Windows worker uses prepare_undo + commit_undo instead.
+    pub fn undo(&mut self, now_ms: u64) -> Option<UndoPlan> {
+        let plan = self.prepare_undo(now_ms)?;
+        self.commit_undo(&plan, now_ms).then_some(plan)
     }
 
     /// The OS did not honor the layout switch: apply relaxed thresholds to the next few words.
@@ -331,7 +378,9 @@ impl Engine {
             if skip_typed(&ptyped) {
                 break;
             }
-            let Some(pconv) = translate_keys(p.keys(), target) else { break };
+            let Some(pconv) = translate_keys(p.keys(), target) else {
+                break;
+            };
             if !self.qualifies_relaxed(typed_lang, &ptyped, &pconv) {
                 break;
             }
@@ -340,8 +389,7 @@ impl Engine {
 
         let mut words = Vec::new();
         let (mut backspaces, mut text, mut original_text) = (0, String::new(), String::new());
-        for i in first..=idx {
-            let wi = &run[i];
+        for wi in run.iter().take(idx + 1).skip(first) {
             let corrected = translate_keys(wi.keys(), target)?;
             let original = wi.typed();
             let spaces = " ".repeat(wi.trailing_spaces);
@@ -350,7 +398,11 @@ impl Engine {
             text.push_str(&spaces);
             original_text.push_str(&original);
             original_text.push_str(&spaces);
-            words.push(WordFix { original, corrected, spaces: wi.trailing_spaces });
+            words.push(WordFix {
+                original,
+                corrected,
+                spaces: wi.trailing_spaces,
+            });
         }
         Some(Correction {
             first,
@@ -375,7 +427,10 @@ impl Engine {
             return false; // valid as typed (or user-protected): the typed word wins
         }
         let letters = letter_count(core(conv));
-        match self.validator.judge(typed_lang.other(), conv, typed_lang, typed) {
+        match self
+            .validator
+            .judge(typed_lang.other(), conv, typed_lang, typed)
+        {
             Evidence::Extension => true,
             Evidence::TierA => letters >= self.cfg.min_len,
             Evidence::TierB(s) => match self.cfg.sensitivity {
@@ -393,7 +448,10 @@ impl Engine {
         if self.typed_is_protected(typed_lang, typed) {
             return false;
         }
-        match self.validator.judge(typed_lang.other(), conv, typed_lang, typed) {
+        match self
+            .validator
+            .judge(typed_lang.other(), conv, typed_lang, typed)
+        {
             Evidence::Extension | Evidence::TierA => true,
             Evidence::TierB(s) => s >= self.cfg.tier_b_relaxed,
             Evidence::None => false,

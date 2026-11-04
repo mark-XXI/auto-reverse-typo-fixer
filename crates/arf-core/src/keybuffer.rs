@@ -21,7 +21,12 @@ pub struct Word {
 
 impl Word {
     fn new(layout: LayoutId) -> Self {
-        Word { parts: Vec::new(), layout, trailing_spaces: 0, state: WordState::Original }
+        Word {
+            parts: Vec::new(),
+            layout,
+            trailing_spaces: 0,
+            state: WordState::Original,
+        }
     }
     pub fn keys(&self) -> impl Iterator<Item = &Key> + '_ {
         self.parts.iter().map(|(k, _)| k)
@@ -59,7 +64,14 @@ pub struct KeyBuffer {
 
 impl KeyBuffer {
     pub fn new(max_words: usize, max_chars: usize, idle_ms: u64) -> Self {
-        KeyBuffer { run: VecDeque::new(), current: None, max_words, max_chars, idle_ms, last_activity_ms: None }
+        KeyBuffer {
+            run: VecDeque::new(),
+            current: None,
+            max_words,
+            max_chars,
+            idle_ms,
+            last_activity_ms: None,
+        }
     }
 
     fn touch(&mut self, now_ms: u64) {
@@ -86,7 +98,13 @@ impl KeyBuffer {
     }
 
     /// Records a typing key. Returns `false` (and resets) if the key cannot be tracked.
-    pub fn push_key(&mut self, key: Key, layout_id: LayoutId, layout: &dyn KeyboardLayout, now_ms: u64) -> bool {
+    pub fn push_key(
+        &mut self,
+        key: Key,
+        layout_id: LayoutId,
+        layout: &dyn KeyboardLayout,
+        now_ms: u64,
+    ) -> bool {
         self.touch(now_ms);
         if self.current.as_ref().is_some_and(|c| c.layout != layout_id) {
             self.reset(); // layout changed mid-word
@@ -95,7 +113,10 @@ impl KeyBuffer {
             self.reset();
             return false;
         };
-        self.current.get_or_insert_with(|| Word::new(layout_id)).parts.push((key, text));
+        self.current
+            .get_or_insert_with(|| Word::new(layout_id))
+            .parts
+            .push((key, text));
         true
     }
 
@@ -130,7 +151,9 @@ impl KeyBuffer {
             }
             return;
         }
-        let Some(last) = self.run.back_mut() else { return };
+        let Some(last) = self.run.back_mut() else {
+            return;
+        };
         if last.state != WordState::Original {
             self.reset();
         } else if last.trailing_spaces > 1 {

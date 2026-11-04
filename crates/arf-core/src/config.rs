@@ -16,7 +16,13 @@ pub struct Hotkey {
 
 impl Hotkey {
     pub fn parse(s: &str) -> Result<Hotkey, String> {
-        let mut h = Hotkey { ctrl: false, alt: false, shift: false, win: false, vk: 0 };
+        let mut h = Hotkey {
+            ctrl: false,
+            alt: false,
+            shift: false,
+            win: false,
+            vk: 0,
+        };
         for part in s.split('+').map(|p| p.trim().to_lowercase()) {
             match part.as_str() {
                 "ctrl" | "control" => h.ctrl = true,
@@ -27,7 +33,8 @@ impl Hotkey {
                     if h.vk != 0 {
                         return Err(format!("hotkey '{s}' has more than one main key"));
                     }
-                    h.vk = key_to_vk(key).ok_or_else(|| format!("unknown key '{key}' in hotkey"))?;
+                    h.vk =
+                        key_to_vk(key).ok_or_else(|| format!("unknown key '{key}' in hotkey"))?;
                 }
             }
         }
@@ -109,9 +116,25 @@ pub struct AppConfig {
 }
 
 pub const DEFAULT_BLACKLIST: &[&str] = &[
-    "cmd.exe", "powershell.exe", "pwsh.exe", "windowsterminal.exe", "conhost.exe", "code.exe", "devenv.exe",
-    "idea64.exe", "pycharm64.exe", "clion64.exe", "webstorm64.exe", "keepass.exe", "keepassxc.exe",
-    "bitwarden.exe", "1password.exe", "mstsc.exe", "vmware.exe", "virtualbox.exe",
+    "cmd.exe",
+    "powershell.exe",
+    "pwsh.exe",
+    "windowsterminal.exe",
+    "conhost.exe",
+    "code.exe",
+    "devenv.exe",
+    "idea64.exe",
+    "pycharm64.exe",
+    "clion64.exe",
+    "webstorm64.exe",
+    "keepass.exe",
+    "keepassxc.exe",
+    "bitwarden.exe",
+    "1password.exe",
+    "mstsc.exe",
+    "vmware.exe",
+    "virtualbox.exe",
+    "notepad.exe",
 ];
 
 impl Default for AppConfig {
@@ -141,7 +164,12 @@ fn parse_list(v: &str) -> Result<Vec<String>, String> {
         .strip_prefix('[')
         .and_then(|r| r.strip_suffix(']'))
         .ok_or_else(|| format!("expected a list, got {v}"))?;
-    inner.split(',').map(str::trim).filter(|s| !s.is_empty()).map(parse_str).collect()
+    inner
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(parse_str)
+        .collect()
 }
 
 fn parse_num<T: std::str::FromStr + PartialOrd>(v: &str, lo: T, hi: T) -> Result<T, String> {
@@ -162,7 +190,9 @@ fn parse_undo_pause(s: &str) -> Result<UndoPause, String> {
             } else if let Some(n) = s.strip_prefix("seconds:") {
                 Ok(UndoPause::Seconds(parse_num(n, 1u32, 3600)?))
             } else {
-                Err(format!("expected none | run | words:N | seconds:N, got '{s}'"))
+                Err(format!(
+                    "expected none | run | words:N | seconds:N, got '{s}'"
+                ))
             }
         }
     }
@@ -187,18 +217,30 @@ pub fn parse(text: &str) -> Result<AppConfig, String> {
         if line.is_empty() {
             continue;
         }
-        let (k, v) = line.split_once('=').ok_or_else(|| format!("line {}: expected key = value", n + 1))?;
+        let (k, v) = line
+            .split_once('=')
+            .ok_or_else(|| format!("line {}: expected key = value", n + 1))?;
         let (k, v) = (k.trim(), v.trim());
         let err = |e: String| format!("line {}: {k}: {e}", n + 1);
         match k {
             "enabled" => cfg.enabled = v.parse().map_err(|_| err("expected true/false".into()))?,
             "min_len" => cfg.engine.min_len = parse_num(v, 1usize, 10).map_err(err)?,
             "max_run_words" => cfg.engine.max_run_words = parse_num(v, 1usize, 50).map_err(err)?,
-            "max_run_chars" => cfg.engine.max_run_chars = parse_num(v, 10usize, 500).map_err(err)?,
-            "idle_timeout_ms" => cfg.engine.idle_timeout_ms = parse_num(v, 1_000u64, 120_000).map_err(err)?,
-            "undo_window_ms" => cfg.engine.undo_window_ms = parse_num(v, 500u64, 60_000).map_err(err)?,
-            "tier_b_strict" => cfg.engine.tier_b_strict = parse_num(v, 0.0f32, 10.0).map_err(err)?,
-            "tier_b_relaxed" => cfg.engine.tier_b_relaxed = parse_num(v, 0.0f32, 10.0).map_err(err)?,
+            "max_run_chars" => {
+                cfg.engine.max_run_chars = parse_num(v, 10usize, 500).map_err(err)?
+            }
+            "idle_timeout_ms" => {
+                cfg.engine.idle_timeout_ms = parse_num(v, 1_000u64, 120_000).map_err(err)?
+            }
+            "undo_window_ms" => {
+                cfg.engine.undo_window_ms = parse_num(v, 500u64, 60_000).map_err(err)?
+            }
+            "tier_b_strict" => {
+                cfg.engine.tier_b_strict = parse_num(v, 0.0f32, 10.0).map_err(err)?
+            }
+            "tier_b_relaxed" => {
+                cfg.engine.tier_b_relaxed = parse_num(v, 0.0f32, 10.0).map_err(err)?
+            }
             "sensitivity" => {
                 cfg.engine.sensitivity = match parse_str(v).map_err(err)?.as_str() {
                     "conservative" => Sensitivity::Conservative,
@@ -211,20 +253,37 @@ pub fn parse(text: &str) -> Result<AppConfig, String> {
                 let langs = parse_list(v).map_err(err)?;
                 cfg.engine.correct_from = langs
                     .iter()
-                    .map(|c| Lang::from_code(c).ok_or_else(|| err(format!("unknown language '{c}'"))))
+                    .map(|c| {
+                        Lang::from_code(c).ok_or_else(|| err(format!("unknown language '{c}'")))
+                    })
                     .collect::<Result<_, _>>()?;
             }
             "blacklist" => {
-                cfg.blacklist = parse_list(v).map_err(err)?.into_iter().map(|s| s.to_lowercase()).collect()
+                cfg.blacklist = parse_list(v)
+                    .map_err(err)?
+                    .into_iter()
+                    .map(|s| s.to_lowercase())
+                    .collect()
             }
             "overlay" => cfg.overlay = v.parse().map_err(|_| err("expected true/false".into()))?,
-            "paced_injection" => cfg.paced_injection = v.parse().map_err(|_| err("expected true/false".into()))?,
+            "paced_injection" => {
+                cfg.paced_injection = v.parse().map_err(|_| err("expected true/false".into()))?
+            }
             "switch_delay_ms" => cfg.switch_delay_ms = parse_num(v, 0u64, 500).map_err(err)?,
             "paced_apps" => {
-                cfg.paced_apps = parse_list(v).map_err(err)?.into_iter().map(|s| s.to_lowercase()).collect()
+                cfg.paced_apps = parse_list(v)
+                    .map_err(err)?
+                    .into_iter()
+                    .map(|s| s.to_lowercase())
+                    .collect()
             }
-            "after_undo" => cfg.engine.undo_pause = parse_undo_pause(&parse_str(v).map_err(err)?).map_err(err)?,
-            "undo_hotkey" => cfg.undo_hotkey = Hotkey::parse(&parse_str(v).map_err(err)?).map_err(err)?,
+            "after_undo" => {
+                cfg.engine.undo_pause =
+                    parse_undo_pause(&parse_str(v).map_err(err)?).map_err(err)?
+            }
+            "undo_hotkey" => {
+                cfg.undo_hotkey = Hotkey::parse(&parse_str(v).map_err(err)?).map_err(err)?
+            }
             other => return Err(format!("line {}: unknown key '{other}'", n + 1)),
         }
     }
@@ -240,7 +299,16 @@ mod tests {
         let c = parse("# comment\nmin_len = 4\nsensitivity = \"balanced\" # inline\nundo_hotkey = \"ctrl+shift+f9\"\nblacklist = [\"Game.exe\"]\ncorrect_from = [\"ar\"]").unwrap();
         assert_eq!(c.engine.min_len, 4);
         assert_eq!(c.engine.sensitivity, Sensitivity::Balanced);
-        assert_eq!(c.undo_hotkey, Hotkey { ctrl: true, alt: false, shift: true, win: false, vk: 0x78 });
+        assert_eq!(
+            c.undo_hotkey,
+            Hotkey {
+                ctrl: true,
+                alt: false,
+                shift: true,
+                win: false,
+                vk: 0x78
+            }
+        );
         assert_eq!(c.blacklist, vec!["game.exe"]);
         assert_eq!(c.engine.correct_from, vec![Lang::Arabic]);
     }
@@ -272,6 +340,11 @@ mod tests {
         assert_eq!(Hotkey::parse("shift+f9").unwrap().display(), "Shift+F9");
     }
 
+    #[test]
+    fn notepad_is_blacklisted_by_default() {
+        let cfg = AppConfig::default();
+        assert!(cfg.blacklist.iter().any(|app| app == "notepad.exe"));
+    }
     #[test]
     fn default_hotkey() {
         assert_eq!(AppConfig::default().undo_hotkey.vk, 0x5A);

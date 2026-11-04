@@ -16,14 +16,24 @@ pub struct StaticLayout {
 }
 
 impl StaticLayout {
-    fn build(lang: Lang, normal: &[&'static str; 47], shifted: &[&'static str; 47], caps: bool) -> Self {
+    fn build(
+        lang: Lang,
+        normal: &[&'static str; 47],
+        shifted: &[&'static str; 47],
+        caps: bool,
+    ) -> Self {
         let mut n = HashMap::new();
         let mut s = HashMap::new();
         for (i, sc) in TYPING_KEYS.iter().enumerate() {
             n.insert(*sc, normal[i]);
             s.insert(*sc, shifted[i]);
         }
-        StaticLayout { lang, normal: n, shifted: s, caps_flips_letters: caps }
+        StaticLayout {
+            lang,
+            normal: n,
+            shifted: s,
+            caps_flips_letters: caps,
+        }
     }
 
     /// Reverse lookup used by tests: the key that types `c` under this layout.
@@ -32,12 +42,20 @@ impl StaticLayout {
         let target: &str = c.encode_utf8(&mut buf);
         for sc in TYPING_KEYS {
             if self.normal[&sc] == target {
-                return Some(Key { scan: sc, shift: false, caps: false });
+                return Some(Key {
+                    scan: sc,
+                    shift: false,
+                    caps: false,
+                });
             }
         }
         for sc in TYPING_KEYS {
             if self.shifted[&sc] == target {
-                return Some(Key { scan: sc, shift: true, caps: false });
+                return Some(Key {
+                    scan: sc,
+                    shift: true,
+                    caps: false,
+                });
             }
         }
         None
@@ -56,34 +74,38 @@ impl KeyboardLayout for StaticLayout {
     fn translate(&self, key: Key) -> Option<String> {
         let base = self.normal.get(&key.scan)?;
         let is_ascii_letter = base.len() == 1 && base.as_bytes()[0].is_ascii_alphabetic();
-        let shift = if self.caps_flips_letters && is_ascii_letter { key.shift ^ key.caps } else { key.shift };
+        let shift = if self.caps_flips_letters && is_ascii_letter {
+            key.shift ^ key.caps
+        } else {
+            key.shift
+        };
         let table = if shift { &self.shifted } else { &self.normal };
         table.get(&key.scan).map(|s| s.to_string())
     }
 }
 
 const US_NORMAL: [&str; 47] = [
-    "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "q", "w", "e", "r", "t", "y", "u", "i",
-    "o", "p", "[", "]", "\\", "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "z", "x", "c", "v", "b",
-    "n", "m", ",", ".", "/",
+    "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "q", "w", "e", "r", "t", "y",
+    "u", "i", "o", "p", "[", "]", "\\", "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "z",
+    "x", "c", "v", "b", "n", "m", ",", ".", "/",
 ];
 const US_SHIFTED: [&str; 47] = [
-    "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "Q", "W", "E", "R", "T", "Y", "U", "I",
-    "O", "P", "{", "}", "|", "A", "S", "D", "F", "G", "H", "J", "K", "L", ":", "\"", "Z", "X", "C", "V", "B",
-    "N", "M", "<", ">", "?",
+    "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "Q", "W", "E", "R", "T", "Y",
+    "U", "I", "O", "P", "{", "}", "|", "A", "S", "D", "F", "G", "H", "J", "K", "L", ":", "\"", "Z",
+    "X", "C", "V", "B", "N", "M", "<", ">", "?",
 ];
 const AR_NORMAL: [&str; 47] = [
-    "ذ", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه",
-    "خ", "ح", "ج", "د", "\\", "ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ط", "ئ", "ء", "ؤ", "ر", "لا",
-    "ى", "ة", "و", "ز", "ظ",
+    "ذ", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "ض", "ص", "ث", "ق", "ف", "غ",
+    "ع", "ه", "خ", "ح", "ج", "د", "\\", "ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ط", "ئ",
+    "ء", "ؤ", "ر", "لا", "ى", "ة", "و", "ز", "ظ",
 ];
 // Shift layer as reported by the project owner: Shift+[ / Shift+] and Shift+, / Shift+.
 // both yield '<' '>' in Arabic, which is exactly the ambiguity the key-based design solves.
 const AR_SHIFTED: [&str; 47] = [
-    "\u{0651}", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "\u{064E}", "\u{064B}", "\u{064F}",
-    "\u{064C}", "لإ", "إ", "\u{2018}", "\u{00F7}", "\u{00D7}", "\u{061B}", "<", ">", "|", "\u{0650}", "\u{064D}",
-    "]", "[", "لأ", "أ", "\u{0640}", "\u{060C}", "/", ":", "\"", "~", "\u{0652}", "}", "{", "لآ", "آ", "\u{2019}",
-    "<", ">", "\u{061F}",
+    "\u{0651}", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "\u{064E}", "\u{064B}",
+    "\u{064F}", "\u{064C}", "لإ", "إ", "\u{2018}", "\u{00F7}", "\u{00D7}", "\u{061B}", "<", ">",
+    "|", "\u{0650}", "\u{064D}", "]", "[", "لأ", "أ", "\u{0640}", "\u{060C}", "/", ":", "\"", "~",
+    "\u{0652}", "}", "{", "لآ", "آ", "\u{2019}", "<", ">", "\u{061F}",
 ];
 
 pub fn us_qwerty() -> StaticLayout {

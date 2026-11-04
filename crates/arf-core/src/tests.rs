@@ -30,7 +30,11 @@ struct Typist {
 
 impl Typist {
     fn new() -> Self {
-        Typist { en: us_qwerty(), ar: arabic_101_fixture(), now: 1_000 }
+        Typist {
+            en: us_qwerty(),
+            ar: arabic_101_fixture(),
+            now: 1_000,
+        }
     }
 
     /// Types `text` (as it would appear under `layout`) and presses Space. Returns the proposal.
@@ -64,8 +68,16 @@ fn spec_examples_convert_by_keys() {
 fn identical_symbols_are_resolved_through_keys() {
     let (en, ar) = (us_qwerty(), arabic_101_fixture());
     // Shift+[ and Shift+, both print '<' in the Arabic fixture...
-    let a = Key { scan: 0x1A, shift: true, caps: false };
-    let b = Key { scan: 0x33, shift: true, caps: false };
+    let a = Key {
+        scan: 0x1A,
+        shift: true,
+        caps: false,
+    };
+    let b = Key {
+        scan: 0x33,
+        shift: true,
+        caps: false,
+    };
     assert_eq!(ar.translate(a), ar.translate(b));
     // ...but they are different keys, so the English interpretation differs.
     assert_eq!(en.translate(a).unwrap(), "{");
@@ -75,7 +87,11 @@ fn identical_symbols_are_resolved_through_keys() {
 #[test]
 fn caps_and_shift() {
     let (en, ar) = (us_qwerty(), arabic_101_fixture());
-    let h = |shift, caps| Key { scan: 0x23, shift, caps };
+    let h = |shift, caps| Key {
+        scan: 0x23,
+        shift,
+        caps,
+    };
     assert_eq!(en.translate(h(false, false)).unwrap(), "h");
     assert_eq!(en.translate(h(true, false)).unwrap(), "H");
     assert_eq!(en.translate(h(false, true)).unwrap(), "H");
@@ -86,7 +102,11 @@ fn caps_and_shift() {
 #[test]
 fn multi_char_key_counts_actual_characters() {
     let ar = arabic_101_fixture();
-    let b = Key { scan: 0x30, shift: false, caps: false };
+    let b = Key {
+        scan: 0x30,
+        shift: false,
+        caps: false,
+    };
     assert_eq!(ar.translate(b).unwrap().chars().count(), 2); // "لا"
     let mut buf = KeyBuffer::new(10, 120, 10_000);
     assert!(buf.push_key(b, AR, &ar, 1));
@@ -155,7 +175,14 @@ fn minimum_length_applies_to_standalone_words() {
 #[test]
 fn prefilter_protects_identifiers() {
     let (mut e, mut t) = (engine(), Typist::new());
-    for w in ["github.com/hgsghl", "camelCase", "snake_case", "user@host.com", "--hgsghl", "12345"] {
+    for w in [
+        "github.com/hgsghl",
+        "camelCase",
+        "snake_case",
+        "user@host.com",
+        "--hgsghl",
+        "12345",
+    ] {
         assert!(t.word(&mut e, EN, w).is_none(), "{w}");
     }
 }
@@ -169,8 +196,10 @@ fn user_dictionary_protects_words() {
 
 #[test]
 fn disabled_source_language() {
-    let mut cfg = Config::default();
-    cfg.correct_from = vec![Lang::Arabic];
+    let cfg = Config {
+        correct_from: vec![Lang::Arabic],
+        ..Config::default()
+    };
     let (mut e, mut t) = (engine_with(cfg), Typist::new());
     assert!(t.word(&mut e, EN, "hgsghl").is_none());
     assert!(t.word(&mut e, AR, "اثممخ").is_some());
@@ -295,6 +324,46 @@ fn undo_restores_original_text_and_layout() {
 }
 
 #[test]
+fn failed_external_undo_does_not_consume_engine_entry() {
+    let (mut e, mut t) = (engine(), Typist::new());
+    let correction = t.word(&mut e, EN, "hgsghl").expect("correction");
+    e.commit(&correction, t.now);
+    let preview = e.prepare_undo(t.now + 100).expect("prepare Undo");
+    // Simulate an external injection failure: no commit_undo call takes place.
+    assert!(e.can_undo(t.now + 150));
+    assert!(!e.is_paused(t.now + 150));
+    assert_eq!(e.prepare_undo(t.now + 150), Some(preview.clone()));
+    // Success commits the exact plan and applies the Undo pause/rejection.
+    assert!(e.commit_undo(&preview, t.now + 150));
+    assert!(!e.can_undo(t.now + 150));
+    assert!(e.is_paused(t.now + 150));
+    assert!(e.prepare_undo(t.now + 150).is_none());
+}
+
+#[test]
+fn invalid_undo_plan_cannot_change_engine_state() {
+    let (mut e, mut t) = (engine(), Typist::new());
+    let correction = t.word(&mut e, EN, "hgsghl").expect("correction");
+    e.commit(&correction, t.now);
+    let mut plan = e.prepare_undo(t.now + 100).expect("prepare Undo");
+    plan.backspaces += 1;
+    assert!(!e.commit_undo(&plan, t.now + 100));
+    assert!(e.can_undo(t.now + 100));
+    assert!(!e.is_paused(t.now + 100));
+}
+
+#[test]
+fn expired_undo_cannot_be_prepared_or_committed() {
+    let (mut e, mut t) = (engine(), Typist::new());
+    let correction = t.word(&mut e, EN, "hgsghl").expect("correction");
+    e.commit(&correction, t.now);
+    let plan = e.prepare_undo(t.now + 100).expect("prepare Undo");
+    assert!(e.prepare_undo(t.now + 10_000).is_none());
+    assert!(!e.commit_undo(&plan, t.now + 10_000));
+    assert!(!e.is_paused(t.now + 10_000));
+}
+
+#[test]
 fn undo_expires_and_is_cleared_by_next_key() {
     let (mut e, mut t) = (engine(), Typist::new());
     let c = t.word(&mut e, EN, "hgsghl").unwrap();
@@ -303,15 +372,25 @@ fn undo_expires_and_is_cleared_by_next_key() {
 
     let c = t.word(&mut e, EN, "hgsghl").unwrap();
     e.commit(&c, t.now);
-    e.on_key(Key { scan: 0x1E, shift: false, caps: false }, AR, t.now + 10);
+    e.on_key(
+        Key {
+            scan: 0x1E,
+            shift: false,
+            caps: false,
+        },
+        AR,
+        t.now + 10,
+    );
     assert!(!e.can_undo(t.now + 20));
 }
 
 #[test]
 fn rejected_words_are_not_dragged_into_later_corrections() {
     use crate::decision::UndoPause;
-    let mut cfg = Config::default();
-    cfg.undo_pause = UndoPause::None;
+    let cfg = Config {
+        undo_pause: UndoPause::None,
+        ..Config::default()
+    };
     let (mut e, mut t) = (engine_with(cfg), Typist::new());
     assert!(t.word(&mut e, EN, "td").is_none());
     let c = t.word(&mut e, EN, "hgsghl").unwrap();
@@ -364,8 +443,10 @@ fn tier_b_is_off_in_conservative_mode() {
 // ---------- undo policy ----------
 
 fn undone_engine(pause: crate::decision::UndoPause) -> (Engine, Typist) {
-    let mut cfg = Config::default();
-    cfg.undo_pause = pause;
+    let cfg = Config {
+        undo_pause: pause,
+        ..Config::default()
+    };
     let (mut e, mut t) = (engine_with(cfg), Typist::new());
     let c = t.word(&mut e, EN, "hgsghl").unwrap();
     e.commit(&c, t.now);

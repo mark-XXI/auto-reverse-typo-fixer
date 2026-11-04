@@ -18,7 +18,11 @@ impl NgramModel {
     }
 
     pub fn add_word(&mut self, w: &str) {
-        let chars: Vec<char> = [BOS, BOS].into_iter().chain(w.chars()).chain([EOS]).collect();
+        let chars: Vec<char> = [BOS, BOS]
+            .into_iter()
+            .chain(w.chars())
+            .chain([EOS])
+            .collect();
         self.seen.extend(w.chars());
         for win in chars.windows(3) {
             *self.tri.entry([win[0], win[1], win[2]]).or_insert(0) += 1;
@@ -32,7 +36,11 @@ impl NgramModel {
 
     /// Average log-probability per character (higher = more language-like).
     pub fn score(&self, w: &str) -> f32 {
-        let chars: Vec<char> = [BOS, BOS].into_iter().chain(w.chars()).chain([EOS]).collect();
+        let chars: Vec<char> = [BOS, BOS]
+            .into_iter()
+            .chain(w.chars())
+            .chain([EOS])
+            .collect();
         let v = (self.seen.len() + 1) as f32;
         let mut total = 0.0f32;
         let mut n = 0u32;
@@ -42,6 +50,10 @@ impl NgramModel {
             total += ((t + K) / (c + K * v)).ln();
             n += 1;
         }
-        if n == 0 { f32::NEG_INFINITY } else { total / n as f32 }
+        if n == 0 {
+            f32::NEG_INFINITY
+        } else {
+            total / n as f32
+        }
     }
 }

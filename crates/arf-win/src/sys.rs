@@ -1,5 +1,10 @@
 //! Minimal hand-written Win32 declarations (x64).
-#![allow(non_snake_case, non_camel_case_types, dead_code, clippy::upper_case_acronyms)]
+#![allow(
+    non_snake_case,
+    non_camel_case_types,
+    dead_code,
+    clippy::upper_case_acronyms
+)]
 
 pub type HWND = isize;
 pub type HHOOK = isize;
@@ -123,10 +128,16 @@ pub const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
 
 #[link(name = "user32")]
 extern "system" {
-    pub fn SetWindowsHookExW(idHook: i32, lpfn: HOOKPROC, hmod: HINSTANCE, dwThreadId: u32) -> HHOOK;
+    pub fn SetWindowsHookExW(
+        idHook: i32,
+        lpfn: HOOKPROC,
+        hmod: HINSTANCE,
+        dwThreadId: u32,
+    ) -> HHOOK;
     pub fn UnhookWindowsHookEx(hhk: HHOOK) -> BOOL;
     pub fn CallNextHookEx(hhk: HHOOK, nCode: i32, wParam: WPARAM, lParam: LPARAM) -> LRESULT;
-    pub fn GetMessageW(lpMsg: *mut MSG, hWnd: HWND, wMsgFilterMin: u32, wMsgFilterMax: u32) -> BOOL;
+    pub fn GetMessageW(lpMsg: *mut MSG, hWnd: HWND, wMsgFilterMin: u32, wMsgFilterMax: u32)
+        -> BOOL;
     pub fn TranslateMessage(lpMsg: *const MSG) -> BOOL;
     pub fn DispatchMessageW(lpMsg: *const MSG) -> LRESULT;
     pub fn GetForegroundWindow() -> HWND;
@@ -157,7 +168,12 @@ extern "system" {
     pub fn GetModuleHandleW(lpModuleName: *const u16) -> HINSTANCE;
     pub fn OpenProcess(dwDesiredAccess: u32, bInheritHandle: BOOL, dwProcessId: u32) -> HANDLE;
     pub fn CloseHandle(hObject: HANDLE) -> BOOL;
-    pub fn QueryFullProcessImageNameW(hProcess: HANDLE, dwFlags: u32, lpExeName: *mut u16, lpdwSize: *mut u32) -> BOOL;
+    pub fn QueryFullProcessImageNameW(
+        hProcess: HANDLE,
+        dwFlags: u32,
+        lpExeName: *mut u16,
+        lpdwSize: *mut u32,
+    ) -> BOOL;
 }
 
 // ---- windowing / GDI (overlay) ----
@@ -244,10 +260,23 @@ extern "system" {
     ) -> HWND;
     pub fn DefWindowProcW(hWnd: HWND, Msg: u32, wParam: WPARAM, lParam: LPARAM) -> LRESULT;
     pub fn ShowWindow(hWnd: HWND, nCmdShow: i32) -> BOOL;
-    pub fn SetWindowPos(hWnd: HWND, hWndInsertAfter: HWND, X: i32, Y: i32, cx: i32, cy: i32, uFlags: u32) -> BOOL;
+    pub fn SetWindowPos(
+        hWnd: HWND,
+        hWndInsertAfter: HWND,
+        X: i32,
+        Y: i32,
+        cx: i32,
+        cy: i32,
+        uFlags: u32,
+    ) -> BOOL;
     pub fn SetLayeredWindowAttributes(hwnd: HWND, crKey: u32, bAlpha: u8, dwFlags: u32) -> BOOL;
     pub fn SetWindowRgn(hWnd: HWND, hRgn: HRGN, bRedraw: BOOL) -> i32;
-    pub fn SetTimer(hWnd: HWND, nIDEvent: usize, uElapse: u32, lpTimerFunc: *const std::ffi::c_void) -> usize;
+    pub fn SetTimer(
+        hWnd: HWND,
+        nIDEvent: usize,
+        uElapse: u32,
+        lpTimerFunc: *const std::ffi::c_void,
+    ) -> usize;
     pub fn KillTimer(hWnd: HWND, uIDEvent: usize) -> BOOL;
     pub fn InvalidateRect(hWnd: HWND, lpRect: *const RECT, bErase: BOOL) -> BOOL;
     pub fn BeginPaint(hWnd: HWND, lpPaint: *mut PAINTSTRUCT) -> HDC;
@@ -255,7 +284,13 @@ extern "system" {
     pub fn GetClientRect(hWnd: HWND, lpRect: *mut RECT) -> BOOL;
     pub fn GetWindowRect(hWnd: HWND, lpRect: *mut RECT) -> BOOL;
     pub fn FillRect(hDC: HDC, lprc: *const RECT, hbr: HBRUSH) -> i32;
-    pub fn DrawTextW(hdc: HDC, lpchText: *const u16, cchText: i32, lprc: *mut RECT, format: u32) -> i32;
+    pub fn DrawTextW(
+        hdc: HDC,
+        lpchText: *const u16,
+        cchText: i32,
+        lprc: *mut RECT,
+        format: u32,
+    ) -> i32;
     pub fn GetDC(hWnd: HWND) -> HDC;
     pub fn ReleaseDC(hWnd: HWND, hDC: HDC) -> i32;
     pub fn ClientToScreen(hWnd: HWND, lpPoint: *mut POINT) -> BOOL;
@@ -270,7 +305,8 @@ extern "system" {
     pub fn SelectObject(hdc: HDC, h: isize) -> isize;
     pub fn SetBkMode(hdc: HDC, mode: i32) -> i32;
     pub fn SetTextColor(hdc: HDC, color: u32) -> u32;
-    pub fn GetTextExtentPoint32W(hdc: HDC, lpString: *const u16, c: i32, lpSize: *mut SIZE) -> BOOL;
+    pub fn GetTextExtentPoint32W(hdc: HDC, lpString: *const u16, c: i32, lpSize: *mut SIZE)
+        -> BOOL;
     pub fn CreateRoundRectRgn(x1: i32, y1: i32, x2: i32, y2: i32, w: i32, h: i32) -> HRGN;
     pub fn CreateFontW(
         cHeight: i32,

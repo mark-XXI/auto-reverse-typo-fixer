@@ -27,16 +27,79 @@ pub struct Validator {
     user_en: HashSet<String>,
 }
 
-const AR_PREFIXES: [&str; 12] = ["وال", "بال", "كال", "فال", "لل", "ال", "و", "ف", "ب", "ك", "ل", "س"];
-const AR_SUFFIXES: [&str; 14] = ["كم", "هم", "هن", "كن", "ها", "نا", "ني", "ون", "ين", "ان", "ات", "ه", "ك", "ي"];
+const AR_PREFIXES: [&str; 12] = [
+    "وال", "بال", "كال", "فال", "لل", "ال", "و", "ف", "ب", "ك", "ل", "س",
+];
+const AR_SUFFIXES: [&str; 14] = [
+    "كم", "هم", "هن", "كن", "ها", "نا", "ني", "ون", "ين", "ان", "ات", "ه", "ك", "ي",
+];
 const MIN_STEM: usize = 3;
 
 const EXTENSIONS: &[&str] = &[
-    "md", "txt", "py", "rs", "js", "ts", "jsx", "tsx", "json", "html", "htm", "css", "c", "h", "cpp", "hpp",
-    "java", "kt", "go", "rb", "php", "sh", "bat", "ps1", "sql", "yml", "yaml", "toml", "xml", "csv", "pdf",
-    "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip", "rar", "7z", "png", "jpg", "jpeg", "gif", "svg",
-    "mp3", "mp4", "exe", "dll", "ini", "cfg", "log", "lock", "ipynb", "dart", "lua", "cs", "swift", "tex",
-    "env", "gitignore", "dockerfile", "vue", "scss",
+    "md",
+    "txt",
+    "py",
+    "rs",
+    "js",
+    "ts",
+    "jsx",
+    "tsx",
+    "json",
+    "html",
+    "htm",
+    "css",
+    "c",
+    "h",
+    "cpp",
+    "hpp",
+    "java",
+    "kt",
+    "go",
+    "rb",
+    "php",
+    "sh",
+    "bat",
+    "ps1",
+    "sql",
+    "yml",
+    "yaml",
+    "toml",
+    "xml",
+    "csv",
+    "pdf",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
+    "ppt",
+    "pptx",
+    "zip",
+    "rar",
+    "7z",
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "svg",
+    "mp3",
+    "mp4",
+    "exe",
+    "dll",
+    "ini",
+    "cfg",
+    "log",
+    "lock",
+    "ipynb",
+    "dart",
+    "lua",
+    "cs",
+    "swift",
+    "tex",
+    "env",
+    "gitignore",
+    "dockerfile",
+    "vue",
+    "scss",
 ];
 
 pub fn is_known_extension(token: &str) -> bool {
@@ -108,7 +171,13 @@ impl Validator {
         }
     }
 
-    pub fn tier_b(&self, target: Lang, conv_core: &str, typed_lang: Lang, typed_core: &str) -> Option<f32> {
+    pub fn tier_b(
+        &self,
+        target: Lang,
+        conv_core: &str,
+        typed_lang: Lang,
+        typed_core: &str,
+    ) -> Option<f32> {
         let tm = self.data(target).model.as_ref()?;
         let sm = self.data(typed_lang).model.as_ref()?;
         if tm.is_empty() || sm.is_empty() {
@@ -175,7 +244,8 @@ fn english_stems(w: &str) -> Vec<String> {
     };
     let undouble = |s: &str| -> Option<String> {
         let c: Vec<char> = s.chars().collect();
-        (c.len() >= 2 && c[c.len() - 1] == c[c.len() - 2]).then(|| c[..c.len() - 1].iter().collect())
+        (c.len() >= 2 && c[c.len() - 1] == c[c.len() - 2])
+            .then(|| c[..c.len() - 1].iter().collect())
     };
     if let Some(s) = w.strip_suffix("ies") {
         push(format!("{s}y"));

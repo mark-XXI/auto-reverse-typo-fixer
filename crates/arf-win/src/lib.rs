@@ -6,10 +6,14 @@
 #![allow(clippy::missing_safety_doc)]
 
 pub mod app;
+pub mod cli;
 pub mod focus;
 pub mod hook;
 pub mod inject;
 pub mod layout_win;
 pub mod overlay;
 pub mod sys;
-pub mod cli;
+pub mod uia;
+#[cfg(windows)]
+pub mod uia_events;
+pub mod uia_guard;

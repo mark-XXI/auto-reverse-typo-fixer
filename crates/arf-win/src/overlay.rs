@@ -108,7 +108,10 @@ unsafe fn anchor(w: i32, h: i32) -> (i32, i32) {
         && gti.hwndCaret != 0
         && (gti.rcCaret.right > gti.rcCaret.left || gti.rcCaret.bottom > gti.rcCaret.top);
     if has_caret {
-        let mut p = POINT { x: gti.rcCaret.left, y: gti.rcCaret.top };
+        let mut p = POINT {
+            x: gti.rcCaret.left,
+            y: gti.rcCaret.top,
+        };
         ClientToScreen(gti.hwndCaret, &mut p);
         x = p.x;
         y = p.y - h - 10;
@@ -141,7 +144,15 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: 
                 let (w, h) = (size.cx + 36, size.cy + 18);
                 let (x, y) = anchor(w, h);
                 SetWindowRgn(hwnd, CreateRoundRectRgn(0, 0, w + 1, h + 1, 14, 14), 1);
-                SetWindowPos(hwnd, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+                SetWindowPos(
+                    hwnd,
+                    HWND_TOPMOST,
+                    x,
+                    y,
+                    w,
+                    h,
+                    SWP_NOACTIVATE | SWP_SHOWWINDOW,
+                );
                 // keep the text for painting
                 if let Ok(mut t) = TOAST.lock() {
                     *t = Some(text);
